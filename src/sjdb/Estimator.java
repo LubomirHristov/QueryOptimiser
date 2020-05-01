@@ -48,43 +48,61 @@ public class Estimator implements PlanVisitor {
 	}
 	
 	public void visit(Select op) {
-		Attribute leftAttribute = op.getInput().getOutput().getAttribute(op.getPredicate().getLeftAttribute());
-		Attribute rightAttribute = op.getInput().getOutput().getAttribute(op.getPredicate().getRightAttribute());
-
-		// Get the value counts of the left and right attributes that are being selected
-		int vcount1 = leftAttribute.getValueCount();
-		int vcount2 = rightAttribute.getValueCount();
-
-		// Get the max value count from the selected attributes
-		int maxValueCount = this.getMaxValueCount(vcount1, vcount2);
-
-		// Get the min value count from the selected attributes
-		int minValueCount = this.getMinValueCount(vcount1, vcount2);
-
 		Relation input = op.getInput().getOutput();
+		boolean predicateEqualsValue = op.getPredicate().equalsValue();
+		Attribute leftAttribute = op.getInput().getOutput().getAttribute(op.getPredicate().getLeftAttribute());
 
-		// Output size = T(R)/max(V(R, A),V(R, B))
-		Relation output = new Relation(input.getTupleCount()/maxValueCount);
 
+		if(predicateEqualsValue){
+			// Output size = T(R)/V(R, A)
+			Relation output = new Relation((int) Math.ceil((double)input.getTupleCount()/leftAttribute.getValueCount()));
 
-		Iterator<Attribute> iter = input.getAttributes().iterator();
-		while (iter.hasNext()) {
-			Attribute attr = iter.next();
+			Iterator<Attribute> iter = input.getAttributes().iterator();
+			while (iter.hasNext()) {
+				Attribute attr = iter.next();
 
-			// If the attribute is from the selected - lower its frequency value to minValueCount
-			if(attr.equals(leftAttribute) || attr.equals(rightAttribute)){
-				output.addAttribute(new Attribute(attr.getName(), minValueCount));
-			}else{
-				output.addAttribute(new Attribute(attr));
+				if(attr.equals(leftAttribute)){
+					output.addAttribute(new Attribute(attr.getName(), 1));
+				}else{
+					output.addAttribute(new Attribute(attr));
+				}
 			}
-		}
 
-		op.setOutput(output);
+			op.setOutput(output);
+		}else{
+			Attribute rightAttribute = op.getInput().getOutput().getAttribute(op.getPredicate().getRightAttribute());
+
+			// Get the value counts of the left and right attributes that are being selected
+			int vcount1 = leftAttribute.getValueCount();
+			int vcount2 = rightAttribute.getValueCount();
+
+			// Get the max value count from the selected attributes
+			int maxValueCount = this.getMaxValueCount(vcount1, vcount2);
+
+			// Get the min value count from the selected attributes
+			int minValueCount = this.getMinValueCount(vcount1, vcount2);
+
+			// Output size = T(R)/max(V(R, A),V(R, B))
+			Relation output = new Relation((int) Math.ceil((double)input.getTupleCount()/maxValueCount));
+
+			Iterator<Attribute> iter = input.getAttributes().iterator();
+			while (iter.hasNext()) {
+				Attribute attr = iter.next();
+
+				if(attr.equals(leftAttribute) || attr.equals(rightAttribute)){
+					output.addAttribute(new Attribute(attr.getName(), minValueCount));
+				}else{
+					output.addAttribute(new Attribute(attr));
+				}
+			}
+
+			op.setOutput(output);
+		}
 	}
 	
 	public void visit(Product op) {
 		// Output size = T(L) * T(R)
-		Relation output = new Relation(op.getLeft().getOutput().getTupleCount() * op.getRight().getOutput().getTupleCount());
+		Relation output = new Relation((int) Math.ceil((double)op.getLeft().getOutput().getTupleCount() * op.getRight().getOutput().getTupleCount()));
 
 		// Get all attributes from the 2 Relations
 		List<Attribute> leftAttributes = op.getLeft().getOutput().getAttributes();
@@ -107,13 +125,13 @@ public class Estimator implements PlanVisitor {
 	
 	public void visit(Join op) {
 		// Get the value counts of the left and right attributes that are being joined
-		int vcount1 = op.getPredicate().getLeftAttribute().getValueCount();
-		int vcount2 = op.getPredicate().getRightAttribute().getValueCount();
+		int vcount1 = op.getLeft().getOutput().getAttribute(op.getPredicate().getLeftAttribute()).getValueCount();
+		int vcount2 = op.getRight().getOutput().getAttribute(op.getPredicate().getRightAttribute()).getValueCount();
 
 		int maxValueCount = this.getMaxValueCount(vcount1, vcount2);
 
 		// Output size = (T(L) * T(R))/max(V(R, A),V(R, B))
-		Relation output = new Relation((op.getLeft().getOutput().getTupleCount() * op.getRight().getOutput().getTupleCount())/maxValueCount);
+		Relation output = new Relation(((int) Math.ceil((double)(op.getLeft().getOutput().getTupleCount() * op.getRight().getOutput().getTupleCount())/maxValueCount)));
 
 		List<Attribute> leftAttributes = op.getLeft().getOutput().getAttributes();
 		List<Attribute> rightAttributes = op.getRight().getOutput().getAttributes();
@@ -128,8 +146,9 @@ public class Estimator implements PlanVisitor {
 
 		// Add only non-duplicate attributes from the second Relation
 		while (iter2.hasNext()) {
-			if(!leftAttributes.contains(iter2.next())){
-				output.addAttribute(new Attribute(iter2.next()));
+			Attribute attr = iter2.next();
+			if(!leftAttributes.contains(attr)){
+				output.addAttribute(new Attribute(attr));
 			}
 		}
 

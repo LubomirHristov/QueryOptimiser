@@ -1,8 +1,5 @@
 package sjdb;
 
-import org.w3c.dom.Attr;
-
-import javax.smartcardio.ATR;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -152,9 +149,13 @@ public class Optimiser {
                             // make sure the predicate is not reversed
                             Predicate predicate = leftAttributes.contains(select.getPredicate().getLeftAttribute()) ? select.getPredicate() : new Predicate(select.getPredicate().getRightAttribute(), select.getPredicate().getLeftAttribute());
 
-                            product = new Join(left, right, predicate);
-                            leftPredicate = predicate.getLeftAttribute();
-                            rightPredicate = predicate.getRightAttribute();
+                            if(product instanceof Join){
+                                product = new Select(product, predicate);
+                            }else{
+                                product = new Join(left, right, predicate);
+                                leftPredicate = predicate.getLeftAttribute();
+                                rightPredicate = predicate.getRightAttribute();
+                            }
                         }
                     }
 
@@ -230,9 +231,13 @@ public class Optimiser {
                                 // make sure the predicate is not reversed
                                 Predicate predicate = leftAttributes.contains(select.getPredicate().getLeftAttribute()) ? select.getPredicate() : new Predicate(select.getPredicate().getRightAttribute(), select.getPredicate().getLeftAttribute());
 
-                                product = new Join(left, right, predicate);
-                                leftPredicate = predicate.getLeftAttribute();
-                                rightPredicate = predicate.getRightAttribute();
+                                if(product instanceof Join){
+                                    product = new Select(product, predicate);
+                                }else{
+                                    product = new Join(left, right, predicate);
+                                    leftPredicate = predicate.getLeftAttribute();
+                                    rightPredicate = predicate.getRightAttribute();
+                                }
                             }
                         }
 
